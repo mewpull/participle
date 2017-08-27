@@ -331,11 +331,13 @@ func (e expression) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.
 			l.SetPos(pos)
 			ee := e[i+1]
 			if aa, ok := ee.(alternative); ok {
+				dbg.Println("   tag:", (aa[len(aa)-1]).(*reference).field.Tag)
 				if oout := alternative(aa).Parse(l, parent); oout != nil {
 					out = oout
+					return
 				}
-				dbg.Println("   tag:", (aa[len(aa)-1]).(*reference).field.Tag)
 			}
+			panic(msg)
 		}
 	}()
 	var a node

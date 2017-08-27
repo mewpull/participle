@@ -5,13 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"text/scanner"
 
 	"github.com/alecthomas/participle/lexer"
+	"github.com/mewkiz/pkg/term"
 )
+
+var dbg = log.New(os.Stderr, term.BlueBold("participle: "), 0)
 
 var (
 	positionType  = reflect.TypeOf(lexer.Position{})
@@ -306,7 +311,35 @@ func (e expression) String() string {
 }
 
 func (e expression) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.Value) {
-	for _, a := range e {
+	// A LexSeeker is a lexer which may seek to arbitrary token offsets in a source.
+	type LexSeeker interface {
+		lexer.Lexer
+		// Pos returns the current position (in tokens) in the input source.
+		Pos() int
+		// SetPos returns the current position (in tokens) in the input source.
+		SetPos(pos int)
+	}
+	l, ok := lex.(LexSeeker)
+	if !ok {
+		panic(fmt.Errorf("invalid lexer type; expected lexer.LexSeeker, got %T", lex))
+	}
+	pos := l.Pos()
+	var i int
+	defer func() {
+		if msg := recover(); msg != nil {
+			dbg.Printf("ignoring parse error (i=%d): %v\n", i, msg)
+			l.SetPos(pos)
+			ee := e[i+1]
+			if aa, ok := ee.(alternative); ok {
+				if oout := alternative(aa).Parse(l, parent); oout != nil {
+					out = oout
+				}
+				dbg.Println("   tag:", (aa[len(aa)-1]).(*reference).field.Tag)
+			}
+		}
+	}()
+	var a node
+	for i, a = range e {
 		if value := a.Parse(lex, parent); value != nil {
 			return value
 		}

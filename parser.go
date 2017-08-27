@@ -328,13 +328,15 @@ func (e expression) Parse(lex lexer.Lexer, parent reflect.Value) (out []reflect.
 	defer func() {
 		if msg := recover(); msg != nil {
 			dbg.Printf("ignoring parse error (i=%d): %v\n", i, msg)
-			l.SetPos(pos)
-			ee := e[i+1]
-			if aa, ok := ee.(alternative); ok {
-				dbg.Println("   tag:", (aa[len(aa)-1]).(*reference).field.Tag)
-				if oout := alternative(aa).Parse(l, parent); oout != nil {
-					out = oout
-					return
+			if i+1 < len(e) {
+				ee := e[i+1]
+				if aa, ok := ee.(alternative); ok {
+					dbg.Println("   tag:", (aa[len(aa)-1]).(*reference).field.Tag)
+					l.SetPos(pos)
+					if oout := alternative(aa).Parse(l, parent); oout != nil {
+						out = oout
+						return
+					}
 				}
 			}
 			panic(msg)
